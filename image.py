@@ -6,7 +6,6 @@ import argparse
 import os
 from typing import List
 
-
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Process image and annotate with detections.")
 
@@ -20,6 +19,8 @@ def parse_arguments() -> argparse.Namespace:
                         help='Version ID for the API request.')
     parser.add_argument('--confidence', type=float, default=0.5,
                         help='Confidence threshold for the detections.')
+    parser.add_argument('--scale', type=float, default=0.4,
+                        help='Resize the annotated image.')
 
     return parser.parse_args()
 
@@ -30,6 +31,7 @@ def annotate_image(
         dataset_id: str,
         version_id: str,
         confidence: float,
+        scale: float,
         api_key: str
 ) -> None:
     url = f"http://localhost:9001/{dataset_id}/{version_id}"
@@ -39,6 +41,7 @@ def annotate_image(
     params = {
         "api_key": api_key,
         "confidence": confidence,
+        "scale": scale
     }
 
     with open(image_path, 'rb') as image_file:
@@ -56,15 +59,22 @@ def annotate_image(
     ]
     annotated_image = box_annotator.annotate(image, detections=detections, labels=labels)
 
-    cv2.imshow("Annotated image", annotated_image)
+    # Resize the frame to desired dimensions
+    height, width = annotated_image.shape[:2]
+    new_width = int(width * scale)
+    new_height = int(height * scale)
+    resized_frame = cv2.resize(annotated_image, (new_width, new_height))
+    
+    cv2.imshow("Annotated image", resized_frame)
     cv2.waitKey(0)
 
 
 if __name__ == "__main__":
     args = parse_arguments()
 
-    API_KEY = os.environ.get('API_KEY')
+    API_KEY = os.environ.get('ROBOFLOW_API_KEY')
     if not API_KEY:
         raise ValueError("API_KEY not found in environment variables.")
 
-    annotate_image(args.image_path, args.class_list, args.dataset_id, args.version_id, args.confidence, API_KEY)
+    annotate_image(args.image_path, args.class_list, args.dataset_id, args.version_id, args.confidence, args.scale, API_KEY)
+
